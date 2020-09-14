@@ -1,0 +1,121 @@
+package cn.dzq.ph.core.util.httpClient;
+
+import lombok.extern.slf4j.Slf4j;
+import org.apache.http.client.config.RequestConfig;
+import org.apache.http.client.methods.*;
+import org.apache.http.client.utils.URIBuilder;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
+
+import java.io.*;
+import java.net.URL;
+import java.net.URLConnection;
+import java.util.*;
+
+
+public class HttpClientUtils {
+    private static final String ENCODING = "UTF-8";
+
+    private static final int CONNECT_TIMEOUT = 6000;
+
+    private static final int SOCKET_TIMEOUT = 6000;
+
+
+    public static String post(String url, String body) {
+        System.out.println("url:" + System.lineSeparator() + url);
+        System.out.println("body:" + System.lineSeparator() + body);
+
+        String result = "";
+        try {
+            OutputStreamWriter out = null;
+            BufferedReader in = null;
+            URL realUrl = new URL(url);
+            URLConnection conn = realUrl.openConnection();
+
+            conn.setDoOutput(true);
+            conn.setDoInput(true);
+            conn.setConnectTimeout(5000);
+            conn.setReadTimeout(20000);
+
+            out = new OutputStreamWriter(conn.getOutputStream(), "UTF-8");
+            out.write(body);
+            out.flush();
+
+            in = new BufferedReader(new InputStreamReader(conn.getInputStream(), "UTF-8"));
+            String line = "";
+            boolean firstLine = true;
+            while ((line = in.readLine()) != null) {
+                if (firstLine) {
+                    firstLine = false;
+                } else {
+                    result += System.lineSeparator();
+                }
+                result += line;
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return result;
+    }
+
+    public static HttpClientResult doGet(String url) throws Exception {
+        return doGet(url, null, null);
+    }
+
+    public static HttpClientResult doGet(String url, Map<String, String> params) throws Exception {
+        return doGet(url, null, params);
+    }
+
+    public static HttpClientResult doGet(String url, Map<String, String> headers, Map<String, String> params) throws Exception {
+        CloseableHttpClient httpClient = HttpClients.createDefault();
+
+        URIBuilder uriBuilder = new URIBuilder(url);
+        if (params != null) {
+            Set<Map.Entry<String, String>> entrySet = params.entrySet();
+            for (Map.Entry<String, String> entry : entrySet) {
+                uriBuilder.setParameter(entry.getKey(), entry.getValue());
+            }
+        }
+
+        HttpGet httpGet = new HttpGet(uriBuilder.build());
+        RequestConfig requestConfig = RequestConfig.custom().setConnectTimeout(CONNECT_TIMEOUT).setSocketTimeout(SOCKET_TIMEOUT).build();
+        httpGet.setConfig(requestConfig);
+
+        packageHeader(headers, httpGet);
+
+        CloseableHttpResponse httpResponse = null;
+
+        try {
+            return getHttpClientResult(httpResponse, httpClient, httpGet);
+        } finally {
+            release(httpResponse, httpClient);
+        }
+    }
+
+    public static HttpClientResult doPost(String url) throws Exception {
+        return doPost(url, null, null);
+    }
+
+    public static HttpClientResult doPost(String url, Map<String, String> params) throws Exception {
+        return doPost(url, null, params);
+    }
+
+    public static HttpClientResult doPost(String url, Map<String, String> headers, Map<String, String> params) throws Exception {
+        CloseableHttpClient httpClient = HttpClients.createDefault();
+
+        HttpPost httpPost = new HttpPost(url);
+        RequestConfig requestConfig = RequestConfig.custom().setConnectTimeout(CONNECT_TIMEOUT).setSocketTimeout(SOCKET_TIMEOUT).build();
+        httpPost.setConfig(requestConfig);
+        packageHeader(headers, httpPost);
+
+        packageParam(params, httpPost);
+
+        CloseableHttpResponse httpResponse = null;
+
+        try {
+            return getHttpClientResult(httpResponse, httpClient, httpPost);
+        } finally {
+            release(httpResponse, httpClient);
+        }
+    }
+ }
