@@ -1,0 +1,53 @@
+public class CashSweepConsumer {
+
+    @Autowired
+    private TradeService tradeService;
+
+    @RabbitListener(queues = RabbitConfig.QUEUE_CASH_SWEEP)
+    public void process(Message message, Channel channel) throws IOException {
+        String source = null;
+        String value = null;
+        String fromAddress = null;
+        String toAddress = null;
+        String remark = null;
+        JSONObject jsonObject = null;
+        try {
+            jsonObject = JSON.parseObject(new String(message.getBody()));
+            if (jsonObject != null) {
+                log.info(jsonObject.toJSONString());
+                source = jsonObject.getString("source");
+                value = jsonObject.getString("value");
+                fromAddress = jsonObject.getString("fromAddress");
+                toAddress = jsonObject.getString("toAddress");
+                remark = jsonObject.getString("remark");
+            } else {
+                log.error(null);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        //source 0:bsc 1:sea 2:usdt 3:eth
+        Map<String, Object> map = null;
+        try {
+            switch (Integer.parseInt(source)) {
+                case 5:
+                    map = tradeService.transferAccounts(IDUtil.nextUUID(), fromAddress,toAddress,value,null,null,5,"");
+                    break;
+                default:
+                    map = new HashMap<String, Object>();
+                    map.put("code", 0);
+                    break;
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        if (map != null) {
+            log.info(map.toString());
+        }
+        if (map != null && ResultEnum.SUCCESS.getCode() == (Integer) map.get("code")) {
+            channel.basicAck(message.getMessageProperties().getDeliveryTag(), false);
+        } else {
+            channel.basicReject(message.getMessageProperties().getDeliveryTag(), false);
+        }
+    }
+}
